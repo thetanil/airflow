@@ -15,18 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import subprocess
-import sys
+import unittest
 
-import pytest
+import jmespath
+from tests.helm_template_generator import render_chart
 
 
-@pytest.fixture(autouse=True, scope="session")
-def upgrade_helm():
-    """
-    Upgrade Helm repo
-    """
-    subprocess.check_output(
-        ["helm", "repo", "add", "stable", "https://kubernetes-charts.storage.googleapis.com/"]
-    )
-    subprocess.check_output(["helm", "dep", "update", sys.path[0]])
+class CeleryKubernetesPodLauncherRole(unittest.TestCase):
+    def test_should_allow_both_scheduler_pod_launching_and_worker_pod_launching(self):
+        docs = render_chart(
+            values={"executor": "CeleryKubernetesExecutor"},
+            show_only=[
+                "templates/rbac/pod-launcher-rolebinding.yaml",
+            ],
+        )
+
+        self.assertEqual(jmespath.search("subjects[0].name", docs[0]), "RELEASE-NAME-scheduler")
+        self.assertEqual(jmespath.search("subjects[1].name", docs[0]), "RELEASE-NAME-worker")
